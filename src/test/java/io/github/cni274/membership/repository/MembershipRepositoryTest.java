@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 
+import java.util.List;
+
 import static io.github.cni274.membership.enums.MembershipType.*;
 import static org.assertj.core.api.Assertions.*;
 
@@ -49,5 +51,39 @@ class MembershipRepositoryTest {
         assertThat(findMembership.getUserId()).isEqualTo("userId");
         assertThat(findMembership.getMembershipType()).isEqualTo(NAVER);
         assertThat(findMembership.getPoint()).isEqualTo(10000);
+    }
+
+    @Test
+    @DisplayName("나의 멤버십 전체 조회 성공 - 데이터 사이즈가 0인 경우")
+    void successful_size0() {
+        List<Membership> findMembershipList = membershipRepository.findAllByUserId("userId");
+
+        assertThat(findMembershipList.size()).isEqualTo(0);
+    }
+
+    @Test
+    @DisplayName("나의 멤버십 전체 조회 성공 - 데이터 사이즈가 2인 경우")
+    void successful_size2() {
+        // given
+        Membership membership1 = Membership.builder()
+                .userId("userId")
+                .membershipType(NAVER)
+                .point(10000)
+                .build();
+
+        Membership membership2 = Membership.builder()
+                .userId("userId")
+                .membershipType(KAKAO)
+                .point(20000)
+                .build();
+
+        membershipRepository.save(membership1);
+        membershipRepository.save(membership2);
+
+        // when
+        List<Membership> findMembershipList = membershipRepository.findAllByUserId("userId");
+
+        // then
+        assertThat(findMembershipList.size()).isEqualTo(2);
     }
 }

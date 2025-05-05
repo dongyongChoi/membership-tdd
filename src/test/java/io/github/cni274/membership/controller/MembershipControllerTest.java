@@ -2,8 +2,9 @@ package io.github.cni274.membership.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.cni274.membership.advice.GlobalExceptionHandler;
+import io.github.cni274.membership.dto.MembershipDetailResponse;
 import io.github.cni274.membership.dto.MembershipRequest;
-import io.github.cni274.membership.dto.MembershipResponse;
+import io.github.cni274.membership.dto.MembershipAddResponse;
 import io.github.cni274.membership.enums.MembershipErrorResult;
 import io.github.cni274.membership.enums.MembershipType;
 import io.github.cni274.membership.exception.MembershipException;
@@ -24,6 +25,9 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static io.github.cni274.membership.constants.MembershipConstants.USER_ID_HEADER;
@@ -86,8 +90,8 @@ class MembershipControllerTest {
     @Test
     @DisplayName("멤버십 등록 성공")
     void successfulAddMembership() throws Exception {
-        MembershipResponse membershipResponse = new MembershipResponse(-1L, MembershipType.NAVER);
-        doReturn(membershipResponse).when(membershipService).addMembership("12345", MembershipType.NAVER, 10000);
+        MembershipAddResponse membershipAddResponse = new MembershipAddResponse(-1L, MembershipType.NAVER);
+        doReturn(membershipAddResponse).when(membershipService).addMembership("12345", MembershipType.NAVER, 10000);
 
         ResultActions resultActions = mockMvc.perform(
                 MockMvcRequestBuilders.post(url)
@@ -98,7 +102,7 @@ class MembershipControllerTest {
 
         resultActions.andExpect(status().isCreated());
 
-        MembershipResponse response = objectMapper.readValue(resultActions.andReturn().getResponse().getContentAsString(), MembershipResponse.class);
+        MembershipAddResponse response = objectMapper.readValue(resultActions.andReturn().getResponse().getContentAsString(), MembershipAddResponse.class);
 
         assertThat(response.getId()).isNotNull();
         assertThat(response.getMembershipType()).isEqualTo(MembershipType.NAVER);
@@ -116,6 +120,105 @@ class MembershipControllerTest {
         );
 
         resultActions.andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("멤버십 조회 실패 - 사용자 식별값이 헤더에 없음")
+    void failedGetMembership_NoHeaderValue() throws Exception {
+        ResultActions resultActions = mockMvc.perform(
+                MockMvcRequestBuilders.get(url)
+        );
+
+        resultActions.andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("멤버십 조회 성공")
+    void successfulGetMemberList() throws Exception {
+        doReturn(List.of(
+                membershipDetailResponse(-1L, MembershipType.NAVER, 10001, LocalDateTime.now()),
+                membershipDetailResponse(-2L, MembershipType.KAKAO, 10002, LocalDateTime.now()),
+                membershipDetailResponse(-3L, MembershipType.LINE, 10003, LocalDateTime.now())
+        ))
+                .when(membershipService)
+                .getMembershipList("12345");
+
+        ResultActions resultActions = mockMvc.perform(
+                MockMvcRequestBuilders.get(url)
+                        .header(USER_ID_HEADER, "12345")
+        );
+
+        resultActions.andExpect(status().isOk());
+
+        verify(membershipService).getMembershipList("12345");
+    }
+
+    @Test
+    @DisplayName("멤버십 상세 조회 실패 - 사용자 식별갑이 헤더에 없음")
+    void failedGetMembershipDetail_NoHeaderValue() throws Exception {
+        String url = "/api/v1/memberships/-1";
+
+        ResultActions resultActions = mockMvc.perform(
+                MockMvcRequestBuilders.get(url)
+        );
+
+        resultActions.andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("멤버십 상세 조회 실패 - 멤버십 존재하지 않음")
+    void failedGetMembershipDetail_MembershipNotFound() throws Exception {
+        String url = "/api/v1/memberships/-1";
+
+        doThrow(new MembershipException(MembershipErrorResult.MEMBERSHIP_NOT_FOUND))
+                .when(membershipService)
+                .getMembership(-1L, "12345");
+
+        ResultActions resultActions = mockMvc.perform(
+                MockMvcRequestBuilders.get(url)
+                        .header(USER_ID_HEADER, "12345")
+        );
+
+        resultActions.andExpect(status().isNotFound());
+
+        verify(membershipService).getMembership(-1L, "12345");
+    }
+
+    @Test
+    @DisplayName("멤버십 상세 조회 성공")
+    void successfulGetMembershipDetail() throws Exception {
+        String url = "/api/v1/memberships/-1";
+
+        doReturn(membershipDetailResponse(-1, MembershipType.NAVER, 10000, LocalDateTime.now()))
+                .when(membershipService)
+                .getMembership(-1L, "12345");
+
+        ResultActions resultActions = mockMvc.perform(
+                MockMvcRequestBuilders.get(url)
+                        .header(USER_ID_HEADER, "12345")
+        );
+
+        resultActions.andExpect(status().isOk());
+        String contentAsString = resultActions.andReturn().getResponse().getContentAsString();
+        MembershipDetailResponse membershipDetailResponse = objectMapper
+                .readValue(contentAsString, MembershipDetailResponse.class);
+
+        assertThat(membershipDetailResponse.getId()).isNotNull();
+        assertThat(membershipDetailResponse.getId()).isEqualTo(-1L);
+        assertThat(membershipDetailResponse.getMembershipType()).isEqualTo(MembershipType.NAVER);
+        assertThat(membershipDetailResponse.getPoint()).isEqualTo(10000);
+
+        verify(membershipService).getMembership(-1L, "12345");
+
+    }
+
+    private MembershipDetailResponse membershipDetailResponse(long id, MembershipType membershipType, int point, LocalDateTime now) {
+        return MembershipDetailResponse.builder()
+                .id(id)
+                .membershipType(membershipType)
+                .point(point)
+                .createdAt(now)
+                .build();
     }
 
     private static Stream<Arguments> invalidMembershipAddParameter() {
