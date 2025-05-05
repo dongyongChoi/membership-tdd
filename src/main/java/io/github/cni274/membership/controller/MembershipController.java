@@ -1,5 +1,6 @@
 package io.github.cni274.membership.controller;
 
+import io.github.cni274.membership.dto.MembershipAccumulateRequest;
 import io.github.cni274.membership.dto.MembershipAddResponse;
 import io.github.cni274.membership.dto.MembershipDetailResponse;
 import io.github.cni274.membership.dto.MembershipRequest;
@@ -51,6 +52,15 @@ public class MembershipController {
 
         membershipService.removeMembership(membershipId, userId);
 
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/api/v1/memberships/{membershipId}/accumulate")
+    public ResponseEntity<Void> accumulateMembershipPoint(
+            @PathVariable Long membershipId,
+            @RequestHeader(USER_ID_HEADER) String userId,
+            @RequestBody @Valid MembershipAccumulateRequest membershipRequest) {
+        membershipService.accumulateMembershipPoint(membershipId, userId, membershipRequest.getPoint());
         return ResponseEntity.noContent().build();
     }
 }

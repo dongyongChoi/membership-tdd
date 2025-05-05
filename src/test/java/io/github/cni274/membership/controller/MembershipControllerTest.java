@@ -153,7 +153,7 @@ class MembershipControllerTest {
     }
 
     @Test
-    @DisplayName("멤버십 상세 조회 실패 - 사용자 식별갑이 헤더에 없음")
+    @DisplayName("멤버십 상세 조회 실패 - 사용자 식별값이 헤더에 없음")
     void failedGetMembershipDetail_NoHeaderValue() throws Exception {
         String url = "/api/v1/memberships/-1";
 
@@ -212,7 +212,7 @@ class MembershipControllerTest {
     }
 
     @Test
-    @DisplayName("멤버십 삭제 실패 - 사용자 식별갑이 헤더에 없음")
+    @DisplayName("멤버십 삭제 실패 - 사용자 식별값이 헤더에 없음")
     void failedRemoveMembership_NoHeaderValue() throws Exception {
         String url = "/api/v1/memberships/-1";
         ResultActions resultActions = mockMvc.perform(
@@ -239,6 +239,49 @@ class MembershipControllerTest {
         verify(membershipService).removeMembership(-1L, "userId");
     }
 
+    @Test
+    @DisplayName("멤버십 적립 실패 - 사용자 식별값이 헤더에 없음")
+    void failedAccumulateMembershipPoint_NoHeaderValue() throws Exception {
+        String url = "/api/v1/memberships/-1/accumulate";
+
+        ResultActions resultActions = mockMvc.perform(
+                MockMvcRequestBuilders.post(url)
+                        .content(objectMapper.writeValueAsString(membershipRequest(-100, MembershipType.NAVER)))
+                        .contentType(MediaType.APPLICATION_JSON)
+        );
+
+        resultActions.andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("멤버십 적립 실패 - 포인트 음수")
+    void failedAccumulateMembershipPoint_NegativePoint() throws Exception {
+        String url = "/api/v1/memberships/-1/accumulate";
+
+        ResultActions resultActions = mockMvc.perform(
+                MockMvcRequestBuilders.post(url)
+                        .header(USER_ID_HEADER, "12345")
+                        .content(objectMapper.writeValueAsString(membershipRequest(-100, MembershipType.NAVER)))
+                        .contentType(MediaType.APPLICATION_JSON)
+        );
+
+        resultActions.andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("멤버십 적립 성공")
+    void successfulAccumulateMembershipPoint() throws Exception {
+        String url = "/api/v1/memberships/-1/accumulate";
+
+        ResultActions resultActions = mockMvc.perform(
+                MockMvcRequestBuilders.post(url)
+                        .header(USER_ID_HEADER, "12345")
+                        .content(objectMapper.writeValueAsString(membershipRequest(100)))
+                        .contentType(MediaType.APPLICATION_JSON)
+        );
+
+        resultActions.andExpect(status().isNoContent());
+    }
 
     private MembershipDetailResponse membershipDetailResponse(long id, MembershipType membershipType, int point, LocalDateTime now) {
         return MembershipDetailResponse.builder()
@@ -259,5 +302,11 @@ class MembershipControllerTest {
 
     private MembershipRequest membershipRequest(Integer point, MembershipType membershipType) {
         return new MembershipRequest(point, membershipType);
+    }
+
+    private MembershipRequest membershipRequest(Integer point) {
+        return MembershipRequest.builder()
+                .point(point)
+                .build();
     }
 }

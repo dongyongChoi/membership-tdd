@@ -29,9 +29,13 @@ class MembershipServiceTest {
     @Mock
     MembershipRepository membershipRepository;
 
+    @Mock
+    RatePointService ratePointService;
+
     @InjectMocks
     MembershipService target;
 
+    private final Long membershipId = -1L;
     private final String userId = "userId";
     private final MembershipType membershipType = MembershipType.NAVER;
     private final Integer point = 10000;
@@ -161,6 +165,50 @@ class MembershipServiceTest {
 
         verify(membershipRepository).findById(-1L);
         verify(membershipRepository).deleteById(-1L);
+    }
+
+    @Test
+    @DisplayName("멤버십 적립 실패 - 존재하지 않음")
+    void failedAccumulateMembershipPoint_MembershipNotFound() {
+        int price = 10000;
+        doReturn(Optional.empty()).when(membershipRepository).findById(membershipId);
+
+        MembershipException membershipException = assertThrows(MembershipException.class, () -> target.accumulateMembershipPoint(membershipId, userId, price));
+
+        assertThat(membershipException.getErrorResult()).isEqualTo(MembershipErrorResult.MEMBERSHIP_NOT_FOUND);
+
+        verify(membershipRepository).findById(membershipId);
+    }
+
+    @Test
+    @DisplayName("멤버십 적립 실패 - 본인이 아님")
+    void failedAccumulateMembershipPoint_NotMembershipOwner() {
+        int price = 10000;
+        doReturn(Optional.of(membership(membershipId, "otherUserId", MembershipType.NAVER, 10000)))
+                .when(membershipRepository).findById(membershipId);
+
+        MembershipException membershipException = assertThrows(MembershipException.class, () -> target.accumulateMembershipPoint(membershipId, userId, price));
+
+        assertThat(membershipException.getErrorResult()).isEqualTo(MembershipErrorResult.NOT_MEMBERSHIP_OWNER);
+
+        verify(membershipRepository).findById(membershipId);
+    }
+
+    @Test
+    @DisplayName("멤버십 적립 성공")
+    void successfulAccumulateMembershipPoint() {
+        int price = 10000;
+        doReturn(Optional.of(membership(membershipId, userId, MembershipType.NAVER, 10000)))
+                .when(membershipRepository).findById(membershipId);
+
+        doReturn(100)
+                .when(ratePointService)
+                .calculateAmount(price);
+
+        target.accumulateMembershipPoint(membershipId, userId, price);
+
+        verify(membershipRepository).findById(membershipId);
+        verify(ratePointService).calculateAmount(price);
     }
 
     private Membership membership() {

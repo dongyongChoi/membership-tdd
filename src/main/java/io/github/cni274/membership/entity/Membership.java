@@ -8,7 +8,6 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
-@Setter
 @Getter
 @Entity
 @Builder
@@ -25,6 +24,7 @@ public class Membership {
     @Column(nullable = false)
     private String userId;
 
+    @Setter
     @Column(nullable = false)
     private Integer point;
 

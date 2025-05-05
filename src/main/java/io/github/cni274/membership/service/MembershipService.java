@@ -15,32 +15,12 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-@Transactional
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class MembershipService {
 
     private final MembershipRepository membershipRepository;
-
-    public MembershipAddResponse addMembership(String userId, MembershipType membershipType, Integer point) {
-        Membership findMembership = membershipRepository.findByUserIdAndMembershipType(userId, membershipType);
-        if (findMembership != null) {
-            throw new MembershipException(MembershipErrorResult.DUPLICATED_MEMBERSHIP_REGISTER);
-        }
-
-        Membership membership = Membership.builder()
-                .userId(userId)
-                .membershipType(membershipType)
-                .point(point)
-                .build();
-
-        Membership savedMembership = membershipRepository.save(membership);
-
-        return new MembershipAddResponse(
-                savedMembership.getId(),
-                savedMembership.getMembershipType()
-        );
-
-    }
+    private final PointService ratePointService;
 
     public List<MembershipDetailResponse> getMembershipList(String userId) {
         List<Membership> findMembershipList = membershipRepository.findAllByUserId(userId);
@@ -62,6 +42,29 @@ public class MembershipService {
         return MembershipDetailResponse.convert(membership);
     }
 
+    @Transactional
+    public MembershipAddResponse addMembership(String userId, MembershipType membershipType, Integer point) {
+        Membership findMembership = membershipRepository.findByUserIdAndMembershipType(userId, membershipType);
+        if (findMembership != null) {
+            throw new MembershipException(MembershipErrorResult.DUPLICATED_MEMBERSHIP_REGISTER);
+        }
+
+        Membership membership = Membership.builder()
+                .userId(userId)
+                .membershipType(membershipType)
+                .point(point)
+                .build();
+
+        Membership savedMembership = membershipRepository.save(membership);
+
+        return new MembershipAddResponse(
+                savedMembership.getId(),
+                savedMembership.getMembershipType()
+        );
+
+    }
+
+    @Transactional
     public void removeMembership(Long membershipId, String userId) {
         Optional<Membership> findMembershipOptional = membershipRepository.findById(membershipId);
 
@@ -72,5 +75,18 @@ public class MembershipService {
         }
 
         membershipRepository.deleteById(membershipId);
+    }
+
+    @Transactional
+    public void accumulateMembershipPoint(Long membershipId, String userId, int price) {
+        Optional<Membership> findMembershipOptional = membershipRepository.findById(membershipId);
+
+        Membership membership = findMembershipOptional.orElseThrow(() -> new MembershipException(MembershipErrorResult.MEMBERSHIP_NOT_FOUND));
+
+        if (!membership.getUserId().equals(userId)) {
+            throw new MembershipException(MembershipErrorResult.NOT_MEMBERSHIP_OWNER);
+        }
+
+        membership.setPoint(membership.getPoint() + ratePointService.calculateAmount(price));
     }
 }
