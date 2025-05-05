@@ -61,4 +61,16 @@ public class MembershipService {
 
         return MembershipDetailResponse.convert(membership);
     }
+
+    public void removeMembership(Long membershipId, String userId) {
+        Optional<Membership> findMembershipOptional = membershipRepository.findById(membershipId);
+
+        Membership findMembership = findMembershipOptional.orElseThrow(() -> new MembershipException(MembershipErrorResult.MEMBERSHIP_NOT_FOUND));
+
+        if (!findMembership.getUserId().equals(userId)) {
+            throw new MembershipException(MembershipErrorResult.NOT_MEMBERSHIP_OWNER);
+        }
+
+        membershipRepository.deleteById(membershipId);
+    }
 }

@@ -1,8 +1,8 @@
 package io.github.cni274.membership.controller;
 
+import io.github.cni274.membership.dto.MembershipAddResponse;
 import io.github.cni274.membership.dto.MembershipDetailResponse;
 import io.github.cni274.membership.dto.MembershipRequest;
-import io.github.cni274.membership.dto.MembershipAddResponse;
 import io.github.cni274.membership.service.MembershipService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -42,5 +42,15 @@ public class MembershipController {
             @PathVariable Long membershipId,
             @RequestHeader(USER_ID_HEADER) String userId) {
         return ResponseEntity.ok(membershipService.getMembership(membershipId, userId));
+    }
+
+    @DeleteMapping("/api/v1/memberships/{membershipId}")
+    public ResponseEntity<Void> deleteMembership(
+            @PathVariable Long membershipId,
+            @RequestHeader(USER_ID_HEADER) String userId) {
+
+        membershipService.removeMembership(membershipId, userId);
+
+        return ResponseEntity.noContent().build();
     }
 }

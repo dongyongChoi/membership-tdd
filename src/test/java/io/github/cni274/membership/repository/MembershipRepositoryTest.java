@@ -7,9 +7,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 
 import java.util.List;
+import java.util.Optional;
 
-import static io.github.cni274.membership.enums.MembershipType.*;
-import static org.assertj.core.api.Assertions.*;
+import static io.github.cni274.membership.enums.MembershipType.KAKAO;
+import static io.github.cni274.membership.enums.MembershipType.NAVER;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @DataJpaTest
 class MembershipRepositoryTest {
@@ -85,5 +87,22 @@ class MembershipRepositoryTest {
 
         // then
         assertThat(findMembershipList.size()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("나의 멤버십 삭제 성공")
+    void successfulDeleteMembership() {
+        var naverMembership = Membership.builder()
+                .userId("userId")
+                .membershipType(NAVER)
+                .point(10000)
+                .build();
+
+        Membership savedMembership = membershipRepository.save(naverMembership);
+
+        membershipRepository.deleteById(savedMembership.getId());
+
+        Optional<Membership> findMembership = membershipRepository.findById(savedMembership.getId());
+        assertThat(findMembership.isEmpty()).isTrue();
     }
 }

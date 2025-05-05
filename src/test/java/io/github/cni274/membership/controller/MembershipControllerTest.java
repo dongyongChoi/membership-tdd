@@ -2,9 +2,9 @@ package io.github.cni274.membership.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.cni274.membership.advice.GlobalExceptionHandler;
+import io.github.cni274.membership.dto.MembershipAddResponse;
 import io.github.cni274.membership.dto.MembershipDetailResponse;
 import io.github.cni274.membership.dto.MembershipRequest;
-import io.github.cni274.membership.dto.MembershipAddResponse;
 import io.github.cni274.membership.enums.MembershipErrorResult;
 import io.github.cni274.membership.enums.MembershipType;
 import io.github.cni274.membership.exception.MembershipException;
@@ -27,11 +27,10 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Stream;
 
 import static io.github.cni274.membership.constants.MembershipConstants.USER_ID_HEADER;
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -211,6 +210,35 @@ class MembershipControllerTest {
         verify(membershipService).getMembership(-1L, "12345");
 
     }
+
+    @Test
+    @DisplayName("멤버십 삭제 실패 - 사용자 식별갑이 헤더에 없음")
+    void failedRemoveMembership_NoHeaderValue() throws Exception {
+        String url = "/api/v1/memberships/-1";
+        ResultActions resultActions = mockMvc.perform(
+                MockMvcRequestBuilders.delete(url)
+        );
+
+        resultActions.andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("멤버십 삭제 성공")
+    void successfulRemoveMembership() throws Exception {
+        String url = "/api/v1/memberships/-1";
+
+        doNothing().when(membershipService).removeMembership(-1L, "userId");
+
+        ResultActions resultActions = mockMvc.perform(
+                MockMvcRequestBuilders.delete(url)
+                        .header(USER_ID_HEADER, "userId")
+        );
+
+        resultActions.andExpect(status().isNoContent());
+
+        verify(membershipService).removeMembership(-1L, "userId");
+    }
+
 
     private MembershipDetailResponse membershipDetailResponse(long id, MembershipType membershipType, int point, LocalDateTime now) {
         return MembershipDetailResponse.builder()

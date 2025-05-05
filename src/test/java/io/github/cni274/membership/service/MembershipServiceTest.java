@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -124,6 +124,43 @@ class MembershipServiceTest {
         assertThat(membershipDetailResponse.getPoint()).isEqualTo(point);
 
         verify(membershipRepository).findById(-1L);
+    }
+
+    @Test
+    @DisplayName("멤버십 삭제 실패 - 멤버십 존재하지 않음")
+    void failed_notFoundMembershipDetail() {
+        doReturn(Optional.empty()).when(membershipRepository).findById(-1L);
+
+        MembershipException membershipException = assertThrows(MembershipException.class, () -> target.removeMembership(-1L, userId));
+
+        assertThat(membershipException.getErrorResult()).isEqualTo(MembershipErrorResult.MEMBERSHIP_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("멤버십 삭제 실패 - 본인이 아님")
+    void failedRemoveMembership_NotMembershipOwner() {
+        doReturn(Optional.of(membership(-1L, "otherUserId", MembershipType.NAVER, 10000)))
+                .when(membershipRepository)
+                .findById(-1L);
+
+        MembershipException membershipException = assertThrows(MembershipException.class, () -> target.removeMembership(-1L, userId));
+
+        assertThat(membershipException.getErrorResult()).isEqualTo(MembershipErrorResult.NOT_MEMBERSHIP_OWNER);
+    }
+
+    @Test
+    @DisplayName("멤버십 삭제 성공")
+    void successful_removeMembership() {
+        doReturn(Optional.of(membership(-1L, userId, MembershipType.NAVER, 10000)))
+                .when(membershipRepository)
+                .findById(-1L);
+
+        doNothing().when(membershipRepository).deleteById(-1L);
+
+        target.removeMembership(-1L, userId);
+
+        verify(membershipRepository).findById(-1L);
+        verify(membershipRepository).deleteById(-1L);
     }
 
     private Membership membership() {
